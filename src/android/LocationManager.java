@@ -18,11 +18,17 @@
 */
 package com.unarin.cordova.beacon;
 
+import static android.content.Context.NOTIFICATION_SERVICE;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
@@ -32,6 +38,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
@@ -46,6 +53,13 @@ import org.altbeacon.beacon.BeaconParser;
 import org.altbeacon.beacon.BeaconTransmitter;
 import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseSettings;
+import android.widget.Toast;
+
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+
+import com.tesisquare.brunellocucinelli.MainActivity;
+import com.tesisquare.brunellocucinelli.R;
 
 import org.altbeacon.beacon.BleNotAvailableException;
 import org.altbeacon.beacon.Identifier;
@@ -89,6 +103,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private static final int DEFAULT_FOREGROUND_SCAN_PERIOD = 1100;
     private static int CDV_LOCATION_MANAGER_DOM_DELEGATE_TIMEOUT = 30;
     private static final int BUILD_VERSION_CODES_M = 23;
+    public static final String CHANNEL_ID = "default-channel-id";
+    public static final String CHANNEL_NAME = "DefaultChannel";
 
     private BeaconTransmitter beaconTransmitter;
     private BeaconManager iBeaconManager;
@@ -102,6 +118,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private BroadcastReceiver broadcastReceiver;
     private BluetoothAdapter bluetoothAdapter;
 
+    private Context context;
+    private NotificationManager notificationManager;
+
+    double scanBeaconDistance = 5;
 
     /**
      * Constructor.
@@ -118,6 +138,12 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
      */
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
+
+        context = getApplicationContext();
+
+        notificationManager = (NotificationManager) context.getSystemService(NOTIFICATION_SERVICE);
+
+        createNotificationChannel(context);
 
         final Activity cordovaActivity = cordova.getActivity();
 
@@ -144,11 +170,11 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                 ENABLE_ARMA_FILTER_NAME, DEFAULT_ENABLE_ARMA_FILTER);
 
         if(enableArmaFilter){
-               iBeaconManager.setRssiFilterImplClass(ArmaRssiFilter.class);
+            iBeaconManager.setRssiFilterImplClass(ArmaRssiFilter.class);
         }
         else{
-               iBeaconManager.setRssiFilterImplClass(RunningAverageRssiFilter.class);
-               RunningAverageRssiFilter.setSampleExpirationMilliseconds(sampleExpirationMilliseconds);
+            iBeaconManager.setRssiFilterImplClass(RunningAverageRssiFilter.class);
+            RunningAverageRssiFilter.setSampleExpirationMilliseconds(sampleExpirationMilliseconds);
         }
         RangedBeacon.setSampleExpirationMilliseconds(sampleExpirationMilliseconds);
 
@@ -167,9 +193,9 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
         final boolean requestPermission = this.preferences.getBoolean(
                 REQUEST_BT_PERMISSION_NAME, DEFAULT_REQUEST_BT_PERMISSION);
-           
+
         if(requestPermission)
-              tryToRequestMarshmallowLocationPermission();
+            tryToRequestMarshmallowLocationPermission();
     }
 
     /**
@@ -216,7 +242,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         } else if (action.equals("stopMonitoringForRegion")) {
             stopMonitoringForRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("startRangingBeaconsInRegion")) {
-            startRangingBeaconsInRegion(args.optJSONObject(0), callbackContext);
+            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), callbackContext);
         } else if (action.equals("stopRangingBeaconsInRegion")) {
             stopRangingBeaconsInRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("isRangingAvailable")) {
@@ -267,7 +293,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private BeaconTransmitter createOrGetBeaconTransmitter() {
         if (this.beaconTransmitter == null) {
             final BeaconParser beaconParser = new BeaconParser()
-                .setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
+                    .setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24");
 
             this.beaconTransmitter = new BeaconTransmitter(getApplicationContext(), beaconParser);
         }
@@ -563,9 +589,21 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                         try {
                             JSONObject data = new JSONObject();
                             JSONArray beaconData = new JSONArray();
+                            String text = "Beacon troppo lontano";
+                            String title = "Attenzione!";
+                            int index = 0;
+
                             for (Beacon beacon : iBeacons) {
+                                if (beacon.getDistance() > scanBeaconDistance) {
+                                    Notification notification = getNotificationForBeacon(title,text);
+                                    LocationManager.this.notify(index, notification);
+                                } else {
+                                    deleteNotification(index);
+                                }
                                 beaconData.put(mapOfBeacon(beacon));
+                                index++;
                             }
+
                             data.put("eventType", "didRangeBeaconsInRegion");
                             data.put("region", mapOfRegion(region));
                             data.put("beacons", beaconData);
@@ -896,7 +934,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
-    private void startRangingBeaconsInRegion(final JSONObject arguments, final CallbackContext callbackContext) {
+    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final CallbackContext callbackContext) {
 
         _handleCallSafely(callbackContext, new ILocationManagerCommand() {
 
@@ -904,6 +942,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             public PluginResult run() {
 
                 try {
+                    iBeaconManager.setForegroundScanPeriod(scanFrequency);
+                    scanBeaconDistance = distance;
                     Region region = parseRegion(arguments);
                     iBeaconManager.startRangingBeaconsInRegion(region);
 
@@ -1178,7 +1218,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         debugLog("Advertisement start START BEACON ");
         debugLog(args.toString(4));
         /*
-        Advertisement start START BEACON 
+        Advertisement start START BEACON
             [
                 {
                     "identifier": "beaconAsMesh",
@@ -1191,7 +1231,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                 7
             ]
         */
-        
+
         JSONObject arguments = args.optJSONObject(0); // get first object
         String identifier = arguments.getString("identifier");
 
@@ -1200,7 +1240,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         final String major = arguments.has("major") && !arguments.isNull("major") ? arguments.getString("major") : null;
         final String minor = arguments.has("minor") && !arguments.isNull("minor") ? arguments.getString("minor") : null;
 
-        // optinal second member in JSONArray is just a number 
+        // optinal second member in JSONArray is just a number
         final int measuredPower = args.length() > 1 ? args.getInt(1) : -55;
 
         if (major == null && minor != null)
@@ -1553,4 +1593,63 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         return cordova.getActivity().bindService(intent, connection, mode);
     }
 
+    public Notification getNotificationForBeacon(String title, String message) {
+        try {
+            Intent intent = new Intent(context, MainActivity.class);
+
+            // The PendingIntent that leads to a call to onStartCommand() in this service.
+            PendingIntent servicePendingIntent = PendingIntent.getService(context, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT);
+
+            // The PendingIntent to launch activity.
+            PendingIntent activityPendingIntent = PendingIntent.getActivity(context, 0,
+                    new Intent(context, MainActivity.class), 0);
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                    .addAction(R.mipmap.ic_launcher, "Apri l'app",
+                            activityPendingIntent)
+                    .setContentTitle(title)
+                    .setContentText(message)
+                    .setPriority(Notification.PRIORITY_HIGH)
+                    .setOngoing(true)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
+                    .setWhen(System.currentTimeMillis());
+
+            return builder.build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(context, e.getMessage() + ", " + e.getStackTrace(), Toast.LENGTH_LONG).show();
+            return null;
+        }
+    }
+
+    public void notify(int ID, Notification notification){
+        notificationManager.notify(ID, notification);
+    }
+
+    public void deleteAllNotifications() {
+        notificationManager.cancelAll();
+    }
+
+    public void deleteNotification(int id) {
+        notificationManager.cancel(id);
+    }
+
+    private void createNotificationChannel(Context context) {
+        try {
+            notificationManager = (NotificationManager) context.getSystemService(NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel serviceChannel = new NotificationChannel(
+                        CHANNEL_ID,
+                        CHANNEL_NAME,
+                        NotificationManager.IMPORTANCE_DEFAULT
+                );
+                notificationManager.createNotificationChannel(serviceChannel);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(context, e.getMessage() + ", " + e.getStackTrace(), Toast.LENGTH_LONG).show();
+        }
+    }
 }
