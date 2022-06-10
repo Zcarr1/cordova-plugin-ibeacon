@@ -1611,7 +1611,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                     .setContentTitle(title)
                     .setContentText(message)
                     .setPriority(Notification.PRIORITY_HIGH)
-                    .setOngoing(true)
+                    //.setOngoing(true)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
                     .setWhen(System.currentTimeMillis());
