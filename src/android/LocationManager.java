@@ -591,18 +591,30 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             JSONArray beaconData = new JSONArray();
                             String text = "Beacon troppo lontano";
                             String title = "Attenzione!";
+                            Notification notification;
+                            //boolean exist = false;
                             int index = 0;
 
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
-                                    Notification notification = getNotificationForBeacon(title,text);
+                                    notification = getNotificationForBeacon(title,text);
                                     LocationManager.this.notify(index, notification);
                                 } else {
-                                    deleteNotification(index);
+                                    //deleteNotification(index);
                                 }
+
+                                /*if (beacon.getId1().equals(region.getId1())) {
+                                    exist = true;
+                                }*/
+
                                 beaconData.put(mapOfBeacon(beacon));
                                 index++;
                             }
+
+                            /*if (!exist) {
+                                notification = getNotificationForBeacon("Attenzione", "Beacon non rilevato");
+                                LocationManager.this.notify(9999, notification);
+                            }*/
 
                             data.put("eventType", "didRangeBeaconsInRegion");
                             data.put("region", mapOfRegion(region));
@@ -1643,7 +1655,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                 NotificationChannel serviceChannel = new NotificationChannel(
                         CHANNEL_ID,
                         CHANNEL_NAME,
-                        NotificationManager.IMPORTANCE_DEFAULT
+                        NotificationManager.IMPORTANCE_HIGH
                 );
                 notificationManager.createNotificationChannel(serviceChannel);
             }
