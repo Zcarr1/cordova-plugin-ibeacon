@@ -280,6 +280,15 @@ LocationManager.prototype.startMonitoringForRegion = function(region) {
 	return this._promisedExec('startMonitoringForRegion', [region], []);
 };
 
+
+LocationManager.prototype.enableNotifications = function() {
+	return this._promisedExec('enableNotifications', [], []);
+};
+
+LocationManager.prototype.disableNotifications = function() {
+	return this._promisedExec('disableNotifications', [], []);
+};
+
 /**
  * Stop monitoring the specified region.  It is valid to call 
  * stopMonitoringForRegion: for a region that was registered for monitoring 

@@ -121,6 +121,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private Context context;
     private NotificationManager notificationManager;
 
+    private boolean showNotifications = true;
+
     double scanBeaconDistance = 5;
 
     /**
@@ -277,6 +279,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             enableBluetooth(callbackContext);
         } else if (action.equals("disableBluetooth")) {
             disableBluetooth(callbackContext);
+        } else if (action.equals("enableNotifications")) {
+            showNotifications = true;
+        } else if (action.equals("disableNotifications")) {
+            showNotifications = false;
         } else {
             return false;
         }
@@ -597,8 +603,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
-                                    notification = getNotificationForBeacon(title,text);
-                                    LocationManager.this.notify(index, notification);
+                                    if (showNotifications) {
+                                        notification = getNotificationForBeacon(title,text);
+                                        LocationManager.this.notify(index, notification);
+                                    }
                                 } else {
                                     //deleteNotification(index);
                                 }
@@ -1664,4 +1672,5 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             Toast.makeText(context, e.getMessage() + ", " + e.getStackTrace(), Toast.LENGTH_LONG).show();
         }
     }
+    
 }
