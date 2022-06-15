@@ -58,8 +58,8 @@ import android.widget.Toast;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
-import com.tesisquare.brunellocucinelli.MainActivity;
-import com.tesisquare.brunellocucinelli.R;
+import com.tesisquare.beaconsdpi.MainActivity;
+import com.tesisquare.beaconsdpi.R;
 
 import org.altbeacon.beacon.BleNotAvailableException;
 import org.altbeacon.beacon.Identifier;
