@@ -1388,6 +1388,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         String uuid = json.has("uuid") && !json.isNull("uuid") ? json.getString("uuid") : null;
         String major = json.has("major") && !json.isNull("major") ? json.getString("major") : null;
         String minor = json.has("minor") && !json.isNull("minor") ? json.getString("minor") : null;
+        String bluetoothAddress = json.has("macaddress") && !json.isNull("macaddress") ? json.getString("macaddress") : null;
 
         if (major == null && minor != null)
             throw new UnsupportedOperationException("Unsupported combination of 'major' and 'minor' parameters.");
@@ -1395,7 +1396,9 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         Identifier id1 = uuid != null ? Identifier.parse(uuid) : null;
         Identifier id2 = major != null ? Identifier.parse(major) : null;
         Identifier id3 = minor != null ? Identifier.parse(minor) : null;
-        return new Region(identifier, id1, id2, id3);
+        //return new Region(identifier, id1, id2, id3);
+
+        return new Region(identifier, bluetoothAddress);
     }
 
 
@@ -1478,6 +1481,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         // signal strength and transmission power
         dict.put("rssi", region.getRssi());
         dict.put("tx", region.getTxPower());
+
+        dict.put("macaddress", region.getBluetoothAddress());
 
         // accuracy = rough distance estimate limited to two decimal places (in metres)
         // NO NOT ASSUME THIS IS ACCURATE - it is effected by radio interference and obstacles
@@ -1672,5 +1677,4 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             Toast.makeText(context, e.getMessage() + ", " + e.getStackTrace(), Toast.LENGTH_LONG).show();
         }
     }
-    
 }
