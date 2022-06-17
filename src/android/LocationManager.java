@@ -617,7 +617,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                 }*/
 
                                 beaconData.put(mapOfBeacon(beacon));
-                                index++;
                             }
 
                             /*if (!exist) {
