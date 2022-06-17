@@ -598,15 +598,15 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             String text = "Beacon troppo lontano";
                             String title = "Attenzione!";
                             Notification notification;
-                            //boolean exist = false;
-                            int index = 0;
+                            int minor = 0;
 
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
                                     if (showNotifications) {
+                                        minor = beacon.getId3().toInt();
                                         text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
                                         notification = getNotificationForBeacon(title,text);
-                                        LocationManager.this.notify(region.getUniqueId().length(), notification);
+                                        LocationManager.this.notify(minor, notification);
                                     }
                                 } else {
                                     //deleteNotification(index);
