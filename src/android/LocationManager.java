@@ -604,8 +604,9 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
                                     if (showNotifications) {
+                                        text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
                                         notification = getNotificationForBeacon(title,text);
-                                        LocationManager.this.notify(index, notification);
+                                        LocationManager.this.notify(region.getUniqueId().length(), notification);
                                     }
                                 } else {
                                     //deleteNotification(index);
@@ -1438,6 +1439,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
         if (region.getId3() != null) {
             dict.put("minor", region.getId3());
+        }
+
+        if (region.getBluetoothAddress() != null) {
+            dict.put("macaddress", region.getBluetoothAddress());
         }
 
         dict.put("typeName", "BeaconRegion");
