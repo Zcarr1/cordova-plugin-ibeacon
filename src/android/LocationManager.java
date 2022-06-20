@@ -85,9 +85,11 @@ import org.json.JSONObject;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.InvalidKeyException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -613,8 +615,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
+                                    addLogEntry(region.getUniqueId(), beacon, currentUser);
                                     if (showNotifications) {
-                                        addLogEntry(region.getUniqueId(), beacon, currentUser);
                                         minor = beacon.getId3().toInt();
                                         text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
                                         notification = getNotificationForBeacon(title,text);
@@ -1699,6 +1701,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private void addLogEntry(String regionName, Beacon beacon, String user) {
         try {
             SQLiteDatabase dbeacons = SQLiteDatabase.openDatabase(DB_PATH.concat(DB_NAME), null, SQLiteDatabase.OPEN_READWRITE);
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
             String id = UUID.randomUUID().toString();
             String uuid = beacon.getId1().toString();
@@ -1708,22 +1711,24 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             int tx = beacon.getTxPower();
             String macaddress = beacon.getBluetoothAddress();
             Date date = new Date();
-            String dtime = date.toString();
-            String ident = regionName;
+            String formattedDate = dateFormat.format(date);
+            String identifier = regionName;
+            double distance = Math.round(beacon.getDistance() * 100.0) / 100.0;
 
-            ContentValues insertValue = new ContentValues();
-            insertValue.put("id", id);
-            insertValue.put("uuid", uuid);
-            insertValue.put("major", major);
-            insertValue.put("minor", minor);
-            insertValue.put("rssi", rssi);
-            insertValue.put("tx", tx);
-            insertValue.put("macaddress", macaddress);
-            insertValue.put("identifier", ident);
-            insertValue.put("dtime", dtime);
-            insertValue.put("user", user);
+            ContentValues insertValues = new ContentValues();
+            insertValues.put("id", id);
+            insertValues.put("uuid", uuid);
+            insertValues.put("major", major);
+            insertValues.put("minor", minor);
+            insertValues.put("rssi", rssi);
+            insertValues.put("tx", tx);
+            insertValues.put("macaddress", macaddress);
+            insertValues.put("identifier", identifier);
+            insertValues.put("dtime", formattedDate);
+            insertValues.put("user", user);
+            insertValues.put("distance", distance);
 
-            long res = dbeacons.insert("LOGS", null, insertValue);
+            long res = dbeacons.insert("LOGS", null, insertValues);
 
             dbeacons.close();
 
