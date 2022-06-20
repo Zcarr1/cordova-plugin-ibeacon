@@ -340,11 +340,11 @@ LocationManager.prototype.requestStateForRegion = function(region) {
  * @return {Q.Promise} Returns a promise which is resolved as soon as the
  * native layer acknowledged the dispatch of the monitoring request.
  */
-LocationManager.prototype.startRangingBeaconsInRegion = function(region, scanFrequency, distance) {
+LocationManager.prototype.startRangingBeaconsInRegion = function(region, scanFrequency, distance, user) {
 	if (!Regions.isBeaconRegion(region))
 		throw new TypeError('The region parameter has to be an instance of BeaconRegion');
 
-	return this._promisedExec('startRangingBeaconsInRegion', [region, scanFrequency, distance], []);
+	return this._promisedExec('startRangingBeaconsInRegion', [region, scanFrequency, distance, user], []);
 };
 
 /**
