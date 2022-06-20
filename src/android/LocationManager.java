@@ -18,6 +18,7 @@
 */
 package com.unarin.cordova.beacon;
 
+import static android.content.Context.MODE_PRIVATE;
 import static android.content.Context.NOTIFICATION_SERVICE;
 
 import android.Manifest;
@@ -32,12 +33,15 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -83,8 +87,12 @@ import java.lang.reflect.Method;
 import java.security.InvalidKeyException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import io.sqlc.SQLitePlugin;
 
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 public class LocationManager extends CordovaPlugin implements BeaconConsumer {
@@ -105,6 +113,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private static final int BUILD_VERSION_CODES_M = 23;
     public static final String CHANNEL_ID = "default-channel-id";
     public static final String CHANNEL_NAME = "DefaultChannel";
+    public static final String DB_PATH = "/data/user/0/com.tesisquare.beaconsdpi/databases/";
+    public static final String DB_NAME = "DBEACONS";
 
     private BeaconTransmitter beaconTransmitter;
     private BeaconManager iBeaconManager;
@@ -120,6 +130,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     private Context context;
     private NotificationManager notificationManager;
+
+    private String user;
 
     private boolean showNotifications = true;
 
@@ -144,7 +156,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         context = getApplicationContext();
 
         notificationManager = (NotificationManager) context.getSystemService(NOTIFICATION_SERVICE);
-
         createNotificationChannel(context);
 
         final Activity cordovaActivity = cordova.getActivity();
@@ -244,7 +255,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         } else if (action.equals("stopMonitoringForRegion")) {
             stopMonitoringForRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("startRangingBeaconsInRegion")) {
-            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), callbackContext);
+            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), args.getString(3), callbackContext);
         } else if (action.equals("stopRangingBeaconsInRegion")) {
             stopRangingBeaconsInRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("isRangingAvailable")) {
@@ -603,6 +614,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             for (Beacon beacon : iBeacons) {
                                 if (beacon.getDistance() > scanBeaconDistance) {
                                     if (showNotifications) {
+                                        addLogEntry(region.getUniqueId(), beacon, user);
                                         minor = beacon.getId3().toInt();
                                         text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
                                         notification = getNotificationForBeacon(title,text);
@@ -628,7 +640,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             data.put("region", mapOfRegion(region));
                             data.put("beacons", beaconData);
 
-                            debugLog("didRangeBeacons: " + data.toString());
+                            //debugLog("didRangeBeacons: " + data.toString());
 
                             //send and keep reference to callback
                             PluginResult result = new PluginResult(PluginResult.Status.OK, data);
@@ -954,7 +966,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
-    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final CallbackContext callbackContext) {
+    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final String user, final CallbackContext callbackContext) {
 
         _handleCallSafely(callbackContext, new ILocationManagerCommand() {
 
@@ -1679,6 +1691,45 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(context, e.getMessage() + ", " + e.getStackTrace(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void addLogEntry(String regionName, Beacon beacon, String user) {
+        try {
+            SQLiteDatabase dbeacons = SQLiteDatabase.openDatabase(DB_PATH.concat(DB_NAME), null, SQLiteDatabase.OPEN_READWRITE);
+
+            String id = UUID.randomUUID().toString();
+            String uuid = beacon.getId1().toString();
+            int major = beacon.getId2().toInt();
+            int minor = beacon.getId3().toInt();
+            int rssi = beacon.getRssi();
+            int tx = beacon.getTxPower();
+            String macaddress = beacon.getBluetoothAddress();
+            Date date = new Date();
+            String dtime = date.toString();
+            String ident = regionName;
+
+            ContentValues insertValue = new ContentValues();
+            insertValue.put("id", id);
+            insertValue.put("uuid", uuid);
+            insertValue.put("major", major);
+            insertValue.put("minor", minor);
+            insertValue.put("rssi", rssi);
+            insertValue.put("tx", tx);
+            insertValue.put("macaddress", macaddress);
+            insertValue.put("identifier", ident);
+            insertValue.put("dtime", dtime);
+            insertValue.put("user", user);
+
+            long res = dbeacons.insert("LOGS", null, insertValue);
+
+            dbeacons.close();
+
+            if (res == -1) {
+                throw new Exception("Inserimento fallito");
+            }
+        } catch (Exception e) {
+            debugLog(e.getMessage());
         }
     }
 }
