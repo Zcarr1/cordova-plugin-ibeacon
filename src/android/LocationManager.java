@@ -1701,7 +1701,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private void addLogEntry(String regionName, Beacon beacon, String user) {
         try {
             SQLiteDatabase dbeacons = SQLiteDatabase.openDatabase(DB_PATH.concat(DB_NAME), null, SQLiteDatabase.OPEN_READWRITE);
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
             String id = UUID.randomUUID().toString();
             String uuid = beacon.getId1().toString();
@@ -1710,6 +1709,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             int rssi = beacon.getRssi();
             int tx = beacon.getTxPower();
             String macaddress = beacon.getBluetoothAddress();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
             Date date = new Date();
             String formattedDate = dateFormat.format(date);
             String identifier = regionName;
