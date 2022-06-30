@@ -139,6 +139,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     double scanBeaconDistance = 5;
 
+    private JSONArray farBeacons = new JSONArray();
+
     /**
      * Constructor.
      */
@@ -608,41 +610,69 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                         try {
                             JSONObject data = new JSONObject();
                             JSONArray beaconData = new JSONArray();
-                            String text = "Beacon troppo lontano";
+                            StringBuilder text = new StringBuilder();
                             String title = "Attenzione!";
                             Notification notification;
-                            int minor = 0;
+                            int minor;
 
                             for (Beacon beacon : iBeacons) {
-                                if (beacon.getDistance() > scanBeaconDistance) {
-                                    addLogEntry(region.getUniqueId(), beacon, currentUser);
+                                JSONObject beaconsJs = mapOfBeacon(beacon);
+
+                                int index = -1;
+
+                                JSONObject obj = new JSONObject()
+                                        .put("id", beacon.getBluetoothAddress())
+                                        .put("name", region.getUniqueId());
+
+                                for (int i = 0; i < farBeacons.length(); i++) {
+                                    JSONObject row = farBeacons.getJSONObject(i);
+                                    if (beacon.getBluetoothAddress().equals(row.getString("id"))) {
+                                        index = i;
+                                        break;
+                                    }
+                                }
+
+                                double accuracy = beaconsJs.getDouble("accuracy");
+
+                                if (accuracy > scanBeaconDistance) {
                                     if (showNotifications) {
-                                        minor = beacon.getId3().toInt();
+                                        /*minor = beacon.getId3().toInt();
                                         text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
-                                        notification = getNotificationForBeacon(title,text);
-                                        LocationManager.this.notify(minor, notification);
+                                        notification = getNotificationForBeacon(title, text);
+                                        LocationManager.this.notify(minor, notification);*/
+
+                                        if (index == -1) {
+                                            farBeacons.put(obj);
+                                        }
                                     }
                                 } else {
                                     //deleteNotification(index);
+                                    if (index > -1) {
+                                        farBeacons.remove(index);
+                                    }
                                 }
 
-                                /*if (beacon.getId1().equals(region.getId1())) {
-                                    exist = true;
-                                }*/
+                                if (farBeacons.length() > 0) {
+                                    for (int i = 0; i < farBeacons.length(); i++) {
+                                        String name = farBeacons.getJSONObject(i).getString("name");
+                                        if (i < farBeacons.length() - 1) {
+                                            text.append(name).append(", ");
+                                        } else {
+                                            text.append(name);
+                                        }
+                                    }
 
-                                beaconData.put(mapOfBeacon(beacon));
+                                    notification = getNotificationForBeacon(title, "Indossare " + text);
+                                    LocationManager.this.notify(0, notification);
+                                }
+
+
+                                beaconData.put(beaconsJs);
                             }
-
-                            /*if (!exist) {
-                                notification = getNotificationForBeacon("Attenzione", "Beacon non rilevato");
-                                LocationManager.this.notify(9999, notification);
-                            }*/
 
                             data.put("eventType", "didRangeBeaconsInRegion");
                             data.put("region", mapOfRegion(region));
                             data.put("beacons", beaconData);
-
-                            //debugLog("didRangeBeacons: " + data.toString());
 
                             //send and keep reference to callback
                             PluginResult result = new PluginResult(PluginResult.Status.OK, data);
