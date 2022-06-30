@@ -139,6 +139,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     double scanBeaconDistance = 5;
 
+    int rssiSensitivity;
+
     private JSONArray farBeacons = new JSONArray();
 
     /**
@@ -259,7 +261,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         } else if (action.equals("stopMonitoringForRegion")) {
             stopMonitoringForRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("startRangingBeaconsInRegion")) {
-            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), args.getString(3), callbackContext);
+            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), args.getInt(3), args.getString(4), callbackContext);
         } else if (action.equals("stopRangingBeaconsInRegion")) {
             stopRangingBeaconsInRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("isRangingAvailable")) {
@@ -633,8 +635,11 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                 }
 
                                 double accuracy = beaconsJs.getDouble("accuracy");
+                                int rssi = beaconsJs.getInt("rssi");
 
-                                if (accuracy > scanBeaconDistance) {
+                                //if (accuracy > scanBeaconDistance) {
+
+                                if (rssi < rssiSensitivity) {
                                     if (showNotifications) {
                                         /*minor = beacon.getId3().toInt();
                                         text = "Dispositivo " + region.getUniqueId() + " troppo lontano";
@@ -998,7 +1003,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
-    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final String user, final CallbackContext callbackContext) {
+    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final int rssi, final String user, final CallbackContext callbackContext) {
 
         _handleCallSafely(callbackContext, new ILocationManagerCommand() {
 
@@ -1008,6 +1013,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                 try {
                     iBeaconManager.setForegroundScanPeriod(scanFrequency);
                     scanBeaconDistance = distance;
+                    rssiSensitivity = rssi;
                     currentUser = user;
 
                     Region region = parseRegion(arguments);
