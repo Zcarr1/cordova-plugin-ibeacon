@@ -634,7 +634,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                     }
                                 }
 
-                                double accuracy = beaconsJs.getDouble("accuracy");
+                                //double accuracy = beaconsJs.getDouble("accuracy");
                                 int rssi = beaconsJs.getInt("rssi");
 
                                 //if (accuracy > scanBeaconDistance) {
