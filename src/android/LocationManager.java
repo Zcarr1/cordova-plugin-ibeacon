@@ -87,6 +87,7 @@ import java.lang.reflect.Method;
 import java.security.InvalidKeyException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
@@ -591,7 +592,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                         } catch (Exception e) {
                             Log.e(TAG, "'monitoringDidFailForRegion' exception " + e.getCause());
                             beaconServiceNotifier.monitoringDidFailForRegion(region, e);
-
                         }
                     }
                 });
@@ -622,10 +622,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
                                 int index = -1;
 
-                                JSONObject obj = new JSONObject()
-                                        .put("id", beacon.getBluetoothAddress())
-                                        .put("name", region.getUniqueId());
-
                                 for (int i = 0; i < farBeacons.length(); i++) {
                                     JSONObject row = farBeacons.getJSONObject(i);
                                     if (beacon.getBluetoothAddress().equals(row.getString("id"))) {
@@ -646,8 +642,51 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                         notification = getNotificationForBeacon(title, text);
                                         LocationManager.this.notify(minor, notification);*/
 
+                                        int c = 0;
+
+                                        JSONObject obj = new JSONObject()
+                                                .put("id", beacon.getBluetoothAddress())
+                                                .put("name", region.getUniqueId());
+
                                         if (index == -1) {
+                                            c = 1;
+                                            obj.put("count", 1);
                                             farBeacons.put(obj);
+                                        } else {
+                                            c = farBeacons.getJSONObject(index).getInt("count");
+                                            c++;
+                                            farBeacons.getJSONObject(index).put("count", c);
+                                        }
+
+                                        if (c == 3) {
+                                            Log.d("COUNT", "Beacon rilevato 3 volte");
+
+                                            /*if (farBeacons.length() > 0) {
+                                                for (int i = 0; i < farBeacons.length(); i++) {
+                                                    String name = farBeacons.getJSONObject(i).getString("name");
+                                                    int count = farBeacons.getJSONObject(i).getInt("count");
+
+                                                    if (count == 3) {
+                                                        if (i < farBeacons.length() - 1) {
+                                                            text.append(name).append(" ");
+                                                        } else {
+                                                            text.append(name);
+                                                        }
+                                                    }
+                                                }
+
+                                                notification = getNotificationForBeacon(title, "Indossare " + text);
+                                                LocationManager.this.notify(0, notification);
+                                            }*/
+
+                                            addLogEntry(region.getUniqueId(), beacon, currentUser);
+
+                                            notification = getNotificationForBeacon(title, "Indossare " + region.getUniqueId());
+                                            LocationManager.this.notify(beacon.getId3().toInt(), notification);
+
+                                            farBeacons.getJSONObject(index).put("count",0);
+                                        } else {
+                                            return;
                                         }
                                     }
                                 } else {
@@ -656,21 +695,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                         farBeacons.remove(index);
                                     }
                                 }
-
-                                if (farBeacons.length() > 0) {
-                                    for (int i = 0; i < farBeacons.length(); i++) {
-                                        String name = farBeacons.getJSONObject(i).getString("name");
-                                        if (i < farBeacons.length() - 1) {
-                                            text.append(name).append(", ");
-                                        } else {
-                                            text.append(name);
-                                        }
-                                    }
-
-                                    notification = getNotificationForBeacon(title, "Indossare " + text);
-                                    LocationManager.this.notify(0, notification);
-                                }
-
 
                                 beaconData.put(beaconsJs);
                             }
@@ -1737,6 +1761,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private void addLogEntry(String regionName, Beacon beacon, String user) {
         try {
             SQLiteDatabase dbeacons = SQLiteDatabase.openDatabase(DB_PATH.concat(DB_NAME), null, SQLiteDatabase.OPEN_READWRITE);
+            String table = "LOGS";
 
             String id = UUID.randomUUID().toString();
             String uuid = beacon.getId1().toString();
@@ -1751,6 +1776,14 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             String identifier = regionName;
             double distance = Math.round(beacon.getDistance() * 100.0) / 100.0;
 
+            Calendar c = Calendar.getInstance();
+            c.setTime(date);
+            c.add(Calendar.DAY_OF_MONTH, -7);
+            String dateWeekAgo = dateFormat.format(c.getTime());
+
+            // rimuovo i record più vecchi di 1 settimana
+            dbeacons.delete(table,"dtime < '" + dateWeekAgo + "'",null);
+
             ContentValues insertValues = new ContentValues();
             insertValues.put("id", id);
             insertValues.put("uuid", uuid);
@@ -1764,7 +1797,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             insertValues.put("user", user);
             insertValues.put("distance", distance);
 
-            long res = dbeacons.insert("LOGS", null, insertValues);
+            long res = dbeacons.insert(table, null, insertValues);
 
             dbeacons.close();
 
