@@ -140,6 +140,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     double scanBeaconDistance = 5;
 
+    int gAttempts;
+
     int rssiSensitivity;
 
     private JSONArray farBeacons = new JSONArray();
@@ -262,7 +264,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         } else if (action.equals("stopMonitoringForRegion")) {
             stopMonitoringForRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("startRangingBeaconsInRegion")) {
-            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), args.getInt(3), args.getString(4), callbackContext);
+            startRangingBeaconsInRegion(args.optJSONObject(0), args.getInt(1), args.getDouble(2), args.getInt(3), args.getString(4), args.getInt(5), callbackContext);
         } else if (action.equals("stopRangingBeaconsInRegion")) {
             stopRangingBeaconsInRegion(args.optJSONObject(0), callbackContext);
         } else if (action.equals("isRangingAvailable")) {
@@ -617,6 +619,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             Notification notification;
                             int minor;
 
+                            if (iBeacons.size() == 0) {
+                                addLogEntry(region.getUniqueId(), null, currentUser, 2);
+                            }
+
                             for (Beacon beacon : iBeacons) {
                                 JSONObject beaconsJs = mapOfBeacon(beacon);
 
@@ -658,8 +664,8 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                             farBeacons.getJSONObject(index).put("count", c);
                                         }
 
-                                        if (c == 3) {
-                                            Log.d("COUNT", "Beacon rilevato 3 volte");
+                                        if (c == gAttempts) {
+                                            Log.d("COUNT", "Beacon rilevato " + gAttempts +" volte");
 
                                             /*if (farBeacons.length() > 0) {
                                                 for (int i = 0; i < farBeacons.length(); i++) {
@@ -1028,7 +1034,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
-    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final int rssi, final String user, final CallbackContext callbackContext) {
+    private void startRangingBeaconsInRegion(final JSONObject arguments, final int scanFrequency, final double distance, final int rssi, final String user, final int attempts, final CallbackContext callbackContext) {
 
         _handleCallSafely(callbackContext, new ILocationManagerCommand() {
 
@@ -1040,6 +1046,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                     scanBeaconDistance = distance;
                     rssiSensitivity = rssi;
                     currentUser = user;
+                    gAttempts = attempts;
 
                     Region region = parseRegion(arguments);
                     iBeaconManager.startRangingBeaconsInRegion(region);
@@ -1765,17 +1772,10 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             String table = "LOGS";
 
             String id = UUID.randomUUID().toString();
-            String uuid = beacon.getId1().toString();
-            int major = beacon.getId2().toInt();
-            int minor = beacon.getId3().toInt();
-            int rssi = beacon.getRssi();
-            int tx = beacon.getTxPower();
-            String macaddress = beacon.getBluetoothAddress();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
             Date date = new Date();
             String formattedDate = dateFormat.format(date);
             String identifier = regionName;
-            double distance = Math.round(beacon.getDistance() * 100.0) / 100.0;
 
             Calendar c = Calendar.getInstance();
             c.setTime(date);
@@ -1786,18 +1786,30 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             dbeacons.delete(table,"dtime < '" + dateWeekAgo + "'",null);
 
             ContentValues insertValues = new ContentValues();
+
             insertValues.put("id", id);
-            insertValues.put("uuid", uuid);
-            insertValues.put("major", major);
-            insertValues.put("minor", minor);
-            insertValues.put("rssi", rssi);
-            insertValues.put("tx", tx);
-            insertValues.put("macaddress", macaddress);
             insertValues.put("identifier", identifier);
             insertValues.put("dtime", formattedDate);
             insertValues.put("user", user);
-            insertValues.put("distance", distance);
             insertValues.put("status", status);
+
+            if (beacon != null) {
+                String uuid = beacon.getId1().toString();
+                int major = beacon.getId2().toInt();
+                int minor = beacon.getId3().toInt();
+                int rssi = beacon.getRssi();
+                int tx = beacon.getTxPower();
+                double distance = Math.round(beacon.getDistance() * 100.0) / 100.0;
+                String macaddress = beacon.getBluetoothAddress();
+
+                insertValues.put("uuid", uuid);
+                insertValues.put("major", major);
+                insertValues.put("minor", minor);
+                insertValues.put("rssi", rssi);
+                insertValues.put("tx", tx);
+                insertValues.put("macaddress", macaddress);
+                insertValues.put("distance", distance);
+            }
 
             long res = dbeacons.insert(table, null, insertValues);
 
