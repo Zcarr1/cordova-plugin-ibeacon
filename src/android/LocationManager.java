@@ -620,7 +620,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             int minor;
 
                             if (iBeacons.size() == 0) {
-                                addLogEntry(region.getUniqueId(), null, currentUser, 2);
+                                addLogEntry(region.getUniqueId(), null, currentUser, 0);
                             }
 
                             for (Beacon beacon : iBeacons) {
