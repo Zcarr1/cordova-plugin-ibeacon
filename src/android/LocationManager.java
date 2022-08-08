@@ -679,7 +679,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                                 LocationManager.this.notify(0, notification);
                                             }*/
 
-                                            addLogEntry(region.getUniqueId(), beacon, currentUser);
+                                            addLogEntry(region.getUniqueId(), beacon, currentUser, 2);
 
                                             notification = getNotificationForBeacon(title, "Indossare " + region.getUniqueId());
                                             LocationManager.this.notify(beacon.getId3().toInt(), notification);
@@ -693,6 +693,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                                     //deleteNotification(index);
                                     if (index > -1) {
                                         farBeacons.remove(index);
+                                        addLogEntry(region.getUniqueId(), beacon, currentUser, 1);
                                     }
                                 }
 
@@ -1758,7 +1759,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         }
     }
 
-    private void addLogEntry(String regionName, Beacon beacon, String user) {
+    private void addLogEntry(String regionName, Beacon beacon, String user, int status) {
         try {
             SQLiteDatabase dbeacons = SQLiteDatabase.openDatabase(DB_PATH.concat(DB_NAME), null, SQLiteDatabase.OPEN_READWRITE);
             String table = "LOGS";
@@ -1796,6 +1797,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
             insertValues.put("dtime", formattedDate);
             insertValues.put("user", user);
             insertValues.put("distance", distance);
+            insertValues.put("status", status);
 
             long res = dbeacons.insert(table, null, insertValues);
 
